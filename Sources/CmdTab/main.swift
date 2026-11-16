@@ -455,6 +455,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsController.show()
     }
 
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        settingsController.show()
+        return true
+    }
+
     private func updateStatusItemVisibility() {
         if showMenuBarIcon {
             setupStatusItem()
