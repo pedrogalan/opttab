@@ -27,7 +27,7 @@ A menu bar item (`⌘⇥`) should appear. **A settings window opens on every lau
 ## Settings
 - **Run at startup**: writes/removes a per-user LaunchAgent at `~/Library/LaunchAgents/dev.cmdtab.login.plist` and bootstraps it into the current session.
 - **Show menu bar icon**: shows/hides the `⌘⇥` menu bar item (persisted in `UserDefaults`). If hidden, launch CmdTab again to reopen Settings — the second launch asks the running instance to show Settings, then exits.
-- **Include windows from other spaces**: off by default. When off, only windows currently visible on the active Space are listed. When on, all of the app's windows are listed, including those on other Spaces.
+- **Include windows from other spaces**: off by default. When off, only windows on the active Desktop are listed. When on, windows on other Desktops are included too. macOS's public Accessibility window list omits off-Desktop windows, so CmdTab uses a private Accessibility SPI to reach them; if that ever stops working, it falls back to active-Desktop windows only.
 - **Thumbnail size**: small, medium, or large. Changes the overlay card and thumbnail dimensions.
 - **About** tab: app version, description, and a link to the GitHub repository.
 - The LaunchAgent points at whichever executable is currently running (inside `dist/CmdTab.app` or the `.build/...` binary). Running from a different location updates the plist on next launch.
@@ -66,7 +66,7 @@ When running via `swift build`/`swift run`, the executable is inside `.build/deb
 
 ## Notes / MVP limitations
 - Uses windows from the app's Accessibility `AXWindows` list (minimized windows filtered best-effort).
-- By default, windows not currently on the active Space are filtered out using the on-screen Core Graphics window list. Windows whose window ID can't be resolved are kept conservatively.
+- By default, only windows on the active Desktop are enumerated. The public `kAXWindowsAttribute` only returns active-Desktop windows on modern macOS; when "Include windows from other spaces" is enabled, CmdTab uses the private remote-token Accessibility SPI to recover off-Desktop window elements. This is best-effort and falls back gracefully.
 - Overlay shows a grid of window thumbnails (screenshots) with titles; falls back to the app icon if thumbnails are unavailable.
 - Thumbnails are captured asynchronously and cached per window (cache is used to show cards instantly).
   - Windows with no cache entry are captured immediately when the switcher opens.

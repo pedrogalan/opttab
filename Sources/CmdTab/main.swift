@@ -424,6 +424,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var switchEntries: [WindowEntry] = []
     private var selectedIndex: Int = 0
 
+    private let otherSpaceCacheLifetime: TimeInterval = 10
+    private let otherSpaceScanBudget: TimeInterval = 0.25
+    private var otherSpaceElementsCache: [pid_t: (date: Date, elements: [CGWindowID: AXUIElement])] = [:]
+
     private var showMenuBarIcon: Bool {
         get {
             preferences.showMenuBarIcon
@@ -655,13 +659,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
         var windowsRef: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef)
-        guard result == .success, let windows = windowsRef as? [AXUIElement] else { return [] }
+        let windows = result == .success ? (windowsRef as? [AXUIElement] ?? []) : []
 
         let cgWindows = onScreenWindowInfo(for: app.processIdentifier)
         let onScreenIDs = Set(cgWindows.map(\.id))
         var usedIDs: Set<CGWindowID> = []
+        var knownIDs: Set<CGWindowID> = []
+        var entries: [WindowEntry] = []
 
-        return windows.compactMap { win in
+        for win in windows {
             var titleRef: CFTypeRef?
             let title: String
             if AXUIElementCopyAttributeValue(win, kAXTitleAttribute as CFString, &titleRef) == .success,
@@ -671,23 +677,76 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 title = ""
             }
 
+            let windowID = resolveWindowID(for: win, title: title, candidates: cgWindows, used: &usedIDs)
+            if let windowID {
+                knownIDs.insert(windowID)
+            }
+
             // Best-effort filter: skip minimized windows
             var minimizedRef: CFTypeRef?
             if AXUIElementCopyAttributeValue(win, kAXMinimizedAttribute as CFString, &minimizedRef) == .success,
                let minimized = minimizedRef as? Bool, minimized {
-                return nil
+                continue
             }
-
-            let windowID = resolveWindowID(for: win, title: title, candidates: cgWindows, used: &usedIDs)
 
             // Windows on other spaces are not in the on-screen window list. Keep
             // windows whose ID we could not resolve (conservative fallback).
             if !includeOtherSpaces, let windowID, !onScreenIDs.contains(windowID) {
-                return nil
+                continue
             }
 
-            return WindowEntry(element: win, title: title, windowID: windowID)
+            entries.append(WindowEntry(element: win, title: title, windowID: windowID))
         }
+
+        guard includeOtherSpaces, PrivateAX.shared.isAvailable else { return entries }
+
+        entries.append(contentsOf: otherSpaceEntries(for: app.processIdentifier, excluding: knownIDs))
+        return entries
+    }
+
+    /// Windows that live on other Spaces are missing from `kAXWindows`. Recover
+    /// their AX elements with the remote-token SPI.
+    ///
+    /// The cache holds *every* window element found for the process, not just the
+    /// ones that were off-Space at scan time. Which windows are "extra" depends on
+    /// the active Desktop, so it must be recomputed per call; otherwise switching
+    /// to the other Desktop finds only a stale, now-empty extra set.
+    private func otherSpaceEntries(for pid: pid_t, excluding knownIDs: Set<CGWindowID>) -> [WindowEntry] {
+        let cached = otherSpaceElementsCache[pid]
+        let elements: [CGWindowID: AXUIElement]
+
+        if let cached, Date().timeIntervalSince(cached.date) < otherSpaceCacheLifetime {
+            elements = cached.elements
+        } else {
+            elements = PrivateAX.shared.allWindowElements(pid: pid, budget: otherSpaceScanBudget)
+            otherSpaceElementsCache[pid] = (Date(), elements)
+            if otherSpaceElementsCache.count > 20,
+               let oldest = otherSpaceElementsCache.min(by: { $0.value.date < $1.value.date }) {
+                otherSpaceElementsCache.removeValue(forKey: oldest.key)
+            }
+        }
+
+        return elements.compactMap { windowID, element in
+            guard !knownIDs.contains(windowID) else { return nil }
+            // Cached elements go stale when a window closes.
+            guard PrivateAX.shared.isAlive(element) else { return nil }
+            return makeWindowEntry(element: element, windowID: windowID)
+        }
+    }
+
+    private func makeWindowEntry(element: AXUIElement, windowID: CGWindowID) -> WindowEntry? {
+        var minimizedRef: CFTypeRef?
+        if AXUIElementCopyAttributeValue(element, kAXMinimizedAttribute as CFString, &minimizedRef) == .success,
+           let minimized = minimizedRef as? Bool, minimized {
+            return nil
+        }
+
+        var titleRef: CFTypeRef?
+        let title = (AXUIElementCopyAttributeValue(element, kAXTitleAttribute as CFString, &titleRef) == .success
+            ? titleRef as? String
+            : nil) ?? ""
+
+        return WindowEntry(element: element, title: title, windowID: windowID)
     }
 
     private struct CGWindowInfoLite {
@@ -716,7 +775,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         candidates: [CGWindowInfoLite],
         used: inout Set<CGWindowID>
     ) -> CGWindowID? {
-        // AX exposes the CGWindowID as the (semi-private) AXWindowNumber attribute on most apps.
+        // Private SPI gives the real CGWindowID; AXWindowNumber is unavailable on
+        // recent macOS versions.
+        if let id = PrivateAX.shared.windowID(of: element) {
+            used.insert(id)
+            return id
+        }
+
         var numberRef: CFTypeRef?
         if AXUIElementCopyAttributeValue(element, "AXWindowNumber" as CFString, &numberRef) == .success,
            let number = numberRef as? Int, number > 0 {
