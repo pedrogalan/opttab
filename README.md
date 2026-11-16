@@ -18,7 +18,14 @@ A menu bar item (`⌘⇥`) should appear. **A settings window opens on every lau
 
 ## Settings
 - **Run at startup**: writes/removes a per-user LaunchAgent at `~/Library/LaunchAgents/dev.cmdtab.login.plist` and bootstraps it into the current session.
-- Because the app is currently an unbundled executable, enabling this points the LaunchAgent at the built binary path. Re-running from a different build directory updates the plist on next launch.
+- **Show menu bar icon**: shows/hides the `⌘⇥` menu bar item (persisted in `UserDefaults`). If hidden, launch CmdTab again to reopen Settings — the second launch asks the running instance to show Settings, then exits.
+- Because the app is currently an unbundled executable, enabling startup points the LaunchAgent at the built binary path. Re-running from a different build directory updates the plist on next launch.
+
+## Release build
+```bash
+swift build -c release
+./.build/release/CmdTab
+```
 
 ## How it works
 - `Alt+Tab`: open overlay (windows of the frontmost app) and move selection forward

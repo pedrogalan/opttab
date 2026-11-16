@@ -403,7 +403,9 @@ private extension Array {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var statusItem: NSStatusItem!
+    private static let showMenuBarIconDefaultsKey = "showMenuBarIcon"
+
+    private var statusItem: NSStatusItem?
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private let overlay = SwitcherOverlayController()
@@ -414,19 +416,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var switchEntries: [WindowEntry] = []
     private var selectedIndex: Int = 0
 
+    private var showMenuBarIcon: Bool {
+        get {
+            let defaults = UserDefaults.standard
+            if defaults.object(forKey: Self.showMenuBarIconDefaultsKey) == nil {
+                return true
+            }
+            return defaults.bool(forKey: Self.showMenuBarIconDefaultsKey)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: Self.showMenuBarIconDefaultsKey)
+            updateStatusItemVisibility()
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        setupStatusItem()
+        updateStatusItemVisibility()
         requestAccessibilityIfNeeded()
         requestScreenRecordingIfNeeded()
         setupEventTap()
         LaunchAtLogin.syncIfEnabled()
+
+        settingsController.isMenuBarIconVisible = { [weak self] in
+            self?.showMenuBarIcon ?? true
+        }
+        settingsController.onShowMenuBarIconChanged = { [weak self] visible in
+            self?.showMenuBarIcon = visible
+        }
+
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handleShowSettingsNotification(_:)),
+            name: .cmdTabShowSettings,
+            object: nil
+        )
+
         settingsController.show()
     }
 
+    private func updateStatusItemVisibility() {
+        if showMenuBarIcon {
+            setupStatusItem()
+        } else if let statusItem {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            self.statusItem = nil
+        }
+    }
+
     private func setupStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        if let button = statusItem.button {
+        guard statusItem == nil else { return }
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        if let button = item.button {
             button.title = "⌘⇥"
             button.toolTip = "CmdTab (Alt+Tab window switcher)"
         }
@@ -437,7 +478,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
         menu.items.forEach { $0.target = self }
-        statusItem.menu = menu
+        item.menu = menu
+        statusItem = item
     }
 
     private func requestAccessibilityIfNeeded() {
@@ -686,6 +728,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsController.show()
     }
 
+    @objc private func handleShowSettingsNotification(_ notification: Notification) {
+        settingsController.show()
+    }
+
     @objc private func quit() {
         NSApp.terminate(nil)
     }
@@ -693,6 +739,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 let instanceLock = SingleInstanceLock()
 guard instanceLock.acquire() else {
+    // Another CmdTab is already running: ask it to show Settings, then exit.
+    DistributedNotificationCenter.default().post(name: .cmdTabShowSettings, object: nil)
+    Thread.sleep(forTimeInterval: 0.2)
     exit(0)
 }
 
