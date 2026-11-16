@@ -1,6 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import CoreGraphics
+import Darwin
 
 private struct WindowEntry {
     let element: AXUIElement
@@ -406,6 +407,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private let overlay = SwitcherOverlayController()
+    private let settingsController = SettingsWindowController()
 
     private var switching = false
     private var switchApp: NSRunningApplication?
@@ -418,6 +420,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         requestAccessibilityIfNeeded()
         requestScreenRecordingIfNeeded()
         setupEventTap()
+        LaunchAtLogin.syncIfEnabled()
+        settingsController.show()
     }
 
     private func setupStatusItem() {
@@ -429,6 +433,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Show Switcher", action: #selector(showSwitcherNow), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
         menu.items.forEach { $0.target = self }
@@ -532,7 +537,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             requestAccessibilityIfNeeded()
             return
         }
-        guard let frontApp = NSWorkspace.shared.frontmostApplication else { return }
+        guard let frontApp = NSWorkspace.shared.frontmostApplication,
+              frontApp.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
         let entries = windowEntries(for: frontApp)
         guard entries.count > 1 else { return }
 
@@ -676,9 +682,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AXUIElementSetAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, window)
     }
 
+    @objc private func openSettings() {
+        settingsController.show()
+    }
+
     @objc private func quit() {
         NSApp.terminate(nil)
     }
+}
+
+let instanceLock = SingleInstanceLock()
+guard instanceLock.acquire() else {
+    exit(0)
 }
 
 let app = NSApplication.shared

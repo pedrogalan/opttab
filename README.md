@@ -14,7 +14,11 @@ swift build
 # or: swift run
 ```
 
-A menu bar item (`⌘⇥`) should appear. Use the menu to quit.
+A menu bar item (`⌘⇥`) should appear. **A settings window opens on every launch**; you can reopen it from the menu bar item → **Settings…**. Use the menu to quit.
+
+## Settings
+- **Run at startup**: writes/removes a per-user LaunchAgent at `~/Library/LaunchAgents/dev.cmdtab.login.plist` and bootstraps it into the current session.
+- Because the app is currently an unbundled executable, enabling this points the LaunchAgent at the built binary path. Re-running from a different build directory updates the plist on next launch.
 
 ## How it works
 - `Alt+Tab`: open overlay (windows of the frontmost app) and move selection forward
