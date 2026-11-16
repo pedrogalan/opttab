@@ -7,6 +7,14 @@ Minimal macOS menu bar app that captures `Alt+Tab` and shows an overlay to switc
 - Global key capture via `CGEvent.tapCreate` (key down + flags changed)
 - Window enumeration/focus via Accessibility API (`AXUIElement`)
 
+## Build CmdTab.app (double-clickable)
+```bash
+./build-app.sh
+open dist/CmdTab.app
+```
+
+This builds a release binary, wraps it in `dist/CmdTab.app`, and ad-hoc signs it. You can also double-click `dist/CmdTab.app` in Finder.
+
 ## Run (development)
 ```bash
 swift build
@@ -19,7 +27,7 @@ A menu bar item (`⌘⇥`) should appear. **A settings window opens on every lau
 ## Settings
 - **Run at startup**: writes/removes a per-user LaunchAgent at `~/Library/LaunchAgents/dev.cmdtab.login.plist` and bootstraps it into the current session.
 - **Show menu bar icon**: shows/hides the `⌘⇥` menu bar item (persisted in `UserDefaults`). If hidden, launch CmdTab again to reopen Settings — the second launch asks the running instance to show Settings, then exits.
-- Because the app is currently an unbundled executable, enabling startup points the LaunchAgent at the built binary path. Re-running from a different build directory updates the plist on next launch.
+- The LaunchAgent points at whichever executable is currently running (inside `dist/CmdTab.app` or the `.build/...` binary). Running from a different location updates the plist on next launch.
 
 ## Release build
 ```bash
@@ -41,7 +49,7 @@ macOS will block global key capture and window control until you grant permissio
 2. **Input Monitoring** (may be required on newer macOS for event taps): System Settings → Privacy & Security → Input Monitoring → allow it.
 3. **Screen Recording**: needed for window thumbnails. Without it the switcher falls back to showing the app icon on each card.
 
-When running via `swift build`/`swift run`, the executable is inside `.build/debug/CmdTab`; you may need to grant permission to that binary or to the launching terminal/IDE, then relaunch.
+When running via `swift build`/`swift run`, the executable is inside `.build/debug/CmdTab`; you may need to grant permission to that binary or to the launching terminal/IDE, then relaunch. When running `dist/CmdTab.app`, grant permissions to **CmdTab** (the app). Rebuilding with a new ad-hoc signature may require granting permissions again.
 
 ## Notes / MVP limitations
 - Uses windows from the app's Accessibility `AXWindows` list (minimized windows filtered best-effort).
@@ -51,7 +59,7 @@ When running via `swift build`/`swift run`, the executable is inside `.build/deb
   - If `Alt` is held with no `Tab` presses for 3 seconds, visible thumbnails refresh; this repeats every 3 seconds while idle.
   - Pressing `Tab`/`Alt+Shift+Tab` resets that 3-second idle timer.
 - Window order/behavior can vary by app (e.g. browsers, document-based apps).
-- Prototype executable; a polished app should be a bundled `.app` (`LSUIElement=true`) with signing/notarization.
+- The `.app` is ad-hoc signed for local use; for distribution, use Developer ID signing and notarization.
 
 ## Next iterations
 - MRU ordering per app and better window filtering (off-screen/sheets/tabs where possible).
