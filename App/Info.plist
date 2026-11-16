@@ -8,6 +8,8 @@
 	<string>CmdTab</string>
 	<key>CFBundleExecutable</key>
 	<string>CmdTab</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>dev.cmdtab</string>
 	<key>CFBundleInfoDictionaryVersion</key>

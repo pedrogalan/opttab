@@ -22,11 +22,11 @@ swift build
 # or: swift run
 ```
 
-A menu bar item (`⌘⇥`) should appear. **A settings window opens on every launch**; you can reopen it from the menu bar item → **Settings…**. Use the menu to quit.
+A menu bar item with the CmdTab arrow icon should appear. **A settings window opens on every launch**; you can reopen it from the menu bar item → **Settings…**. Use the menu to quit.
 
 ## Settings
 - **Run at startup**: writes/removes a per-user LaunchAgent at `~/Library/LaunchAgents/dev.cmdtab.login.plist` and bootstraps it into the current session.
-- **Show menu bar icon**: shows/hides the `⌘⇥` menu bar item (persisted in `UserDefaults`). If hidden, launch CmdTab again to reopen Settings — the second launch asks the running instance to show Settings, then exits.
+- **Show menu bar icon**: shows/hides the menu bar item (persisted in `UserDefaults`). If hidden, launch CmdTab again to reopen Settings — the second launch asks the running instance to show Settings, then exits.
 - **Include windows from other spaces**: off by default. When off, only windows on the active Desktop are listed. When on, windows on other Desktops are included too. macOS's public Accessibility window list omits off-Desktop windows, so CmdTab uses a private Accessibility SPI to reach them; if that ever stops working, it falls back to active-Desktop windows only.
 - **Thumbnail size**: small, medium, or large. Changes the overlay card and thumbnail dimensions.
 - **About** tab: app version, description, and a link to the GitHub repository.

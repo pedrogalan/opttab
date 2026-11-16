@@ -483,18 +483,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard statusItem == nil else { return }
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = item.button {
-            button.title = "⌘⇥"
+            applyMenuBarIcon(to: button)
             button.toolTip = "CmdTab (Alt+Tab window switcher)"
         }
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Show Switcher", action: #selector(showSwitcherNow), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
         menu.items.forEach { $0.target = self }
         item.menu = menu
         statusItem = item
+    }
+
+    private func applyMenuBarIcon(to button: NSButton) {
+        guard let url = Bundle.main.url(forResource: "menu-bar-icon", withExtension: "png"),
+              let image = NSImage(contentsOf: url) else {
+            button.title = "⌘⇥"
+            return
+        }
+
+        // Menu bar icons are template images: the alpha channel is tinted by the
+        // system so the icon follows light/dark mode automatically.
+        let statusIcon = NSImage(size: NSSize(width: 20, height: 20), flipped: false) { rect in
+            image.draw(in: rect)
+            return true
+        }
+        statusIcon.isTemplate = true
+        button.image = statusIcon
+        button.imagePosition = .imageOnly
+        button.title = ""
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
@@ -586,14 +604,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         return Unmanaged.passUnretained(event)
-    }
-
-    @objc private func showSwitcherNow() {
-        if switching {
-            advanceSelection(reverse: false)
-        } else {
-            beginSwitch(reverse: false)
-        }
     }
 
     private func beginSwitch(reverse: Bool) {
