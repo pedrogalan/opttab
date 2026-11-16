@@ -272,7 +272,7 @@ final class SettingsWindowController: NSObject {
 
     private var appVersion: String {
         let info = Bundle.main.infoDictionary
-        let shortVersion = info?["CFBundleShortVersionString"] as? String ?? "0.1.0"
+        let shortVersion = info?["CFBundleShortVersionString"] as? String ?? "1.0.0"
         let build = info?["CFBundleVersion"] as? String ?? "1"
         return "\(shortVersion) (\(build))"
     }

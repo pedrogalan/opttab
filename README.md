@@ -1,6 +1,8 @@
-# CmdTab (prototype)
+# CmdTab
 
 Minimal macOS menu bar app that captures `Alt+Tab` and shows an overlay to switch between windows of the **current/frontmost app** (Cmd+Tab-style, but per-app).
+
+CmdTab 1.0.0 supports macOS 13 and later.
 
 ## Stack
 - Swift + AppKit (native)
@@ -14,6 +16,10 @@ open dist/CmdTab.app
 ```
 
 This builds a release binary, wraps it in `dist/CmdTab.app`, and ad-hoc signs it. You can also double-click `dist/CmdTab.app` in Finder.
+
+## Download
+
+Once published, release downloads will be available on the [GitHub Releases page](https://github.com/pedrogalan/cmdtab/releases). The app is currently ad-hoc signed because the project does not have an Apple Developer ID certificate. macOS may show a security warning when opening a downloaded copy; Control-click the app and choose **Open** to approve it. Developer ID signing and notarization are needed for the standard trusted-download experience.
 
 ## Run (development)
 ```bash
@@ -34,9 +40,10 @@ A menu bar item with the CmdTab arrow icon should appear. **A settings window op
 
 ## Release build
 ```bash
-swift build -c release
-./.build/release/CmdTab
+./build-release.sh
 ```
+
+This produces a universal app and ZIP archive in `dist/` for Intel and Apple silicon Macs.
 
 ## How it works
 - `Alt+Tab`: open overlay (windows of the frontmost app) and move selection forward

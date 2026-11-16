@@ -4,17 +4,20 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 APP_NAME="CmdTab"
-APP_BUNDLE="dist/${APP_NAME}.app"
+APP_BUNDLE="${1:-dist/${APP_NAME}.app}"
+APP_BINARY="${CMDTAB_BINARY:-.build/release/${APP_NAME}}"
 
-echo "Building release binary…"
-swift build -c release
+if [ -z "${CMDTAB_BINARY:-}" ]; then
+  echo "Building release binary…"
+  swift build -c release
+fi
 
 echo "Creating ${APP_BUNDLE}…"
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
 
-cp ".build/release/${APP_NAME}" "$APP_BUNDLE/Contents/MacOS/${APP_NAME}"
+cp "$APP_BINARY" "$APP_BUNDLE/Contents/MacOS/${APP_NAME}"
 cp "App/Info.plist" "$APP_BUNDLE/Contents/Info.plist"
 cp "App/menu-bar-icon.png" "$APP_BUNDLE/Contents/Resources/menu-bar-icon.png"
 
