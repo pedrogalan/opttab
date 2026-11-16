@@ -118,7 +118,6 @@ final class SettingsWindowController: NSObject {
         let separator = NSBox()
         separator.boxType = .separator
         separator.translatesAutoresizingMaskIntoConstraints = false
-        separator.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -32).isActive = true
 
         let permissionsHeader = NSTextField(labelWithString: "Permissions")
         permissionsHeader.font = NSFont.boldSystemFont(ofSize: 12)
@@ -184,6 +183,7 @@ final class SettingsWindowController: NSObject {
             stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             stack.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -16),
+            separator.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -32),
         ])
 
         return view
