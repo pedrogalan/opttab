@@ -71,6 +71,7 @@ private final class SwitcherOverlayController {
     private var imageViews: [NSImageView] = []
     private var entries: [WindowEntry] = []
     private var currentAppIcon: NSImage?
+    private var documentView: NSView?
     private var generation = 0
     private var idleWorkItem: DispatchWorkItem?
     private let thumbnailCache = ThumbnailCache()
@@ -116,21 +117,43 @@ private final class SwitcherOverlayController {
         header.addArrangedSubview(headerLabel)
         root.addArrangedSubview(header)
 
-        let row = NSStackView()
-        row.orientation = .horizontal
-        row.alignment = .top
-        row.spacing = 12
-        row.translatesAutoresizingMaskIntoConstraints = false
+        let screenWidth = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame.width ?? 1440
+        let maxPanelWidth = screenWidth - 80
+        let cardSpacing: CGFloat = 12
+        let rowSpacing: CGFloat = 12
+        let horizontalPadding: CGFloat = 30
 
-        for entry in entries {
+        let maxCardsPerRow = max(
+            1,
+            Int((maxPanelWidth - horizontalPadding + cardSpacing) / (Self.cardSize.width + cardSpacing))
+        )
+        let rowCount = entries.count <= maxCardsPerRow ? 1 : 2
+        let cardsInFirstRow = rowCount == 1 ? entries.count : Int(ceil(Double(entries.count) / 2.0))
+
+        let grid = NSStackView()
+        grid.orientation = .vertical
+        grid.alignment = .centerX
+        grid.spacing = rowSpacing
+        grid.translatesAutoresizingMaskIntoConstraints = false
+
+        for (index, entry) in entries.enumerated() {
+            if index == 0 || index == cardsInFirstRow {
+                let row = NSStackView()
+                row.orientation = .horizontal
+                row.alignment = .top
+                row.spacing = cardSpacing
+                row.translatesAutoresizingMaskIntoConstraints = false
+                grid.addArrangedSubview(row)
+            }
+            guard let row = grid.arrangedSubviews.last as? NSStackView else { continue }
             let (card, imageView) = makeCard(appIcon: appIcon, entry: entry)
             row.addArrangedSubview(card)
             cardViews.append(card)
             imageViews.append(imageView)
         }
 
-        row.layoutSubtreeIfNeeded()
-        let rowSize = row.fittingSize
+        grid.layoutSubtreeIfNeeded()
+        let gridSize = grid.fittingSize
 
         let scroll = NSScrollView()
         scroll.drawsBackground = false
@@ -140,10 +163,11 @@ private final class SwitcherOverlayController {
         scroll.scrollerStyle = .overlay
         scroll.translatesAutoresizingMaskIntoConstraints = false
 
-        row.frame = NSRect(origin: .zero, size: rowSize)
-        row.translatesAutoresizingMaskIntoConstraints = true
-        scroll.documentView = row
-        scroll.heightAnchor.constraint(equalToConstant: rowSize.height + 6).isActive = true
+        grid.frame = NSRect(origin: .zero, size: gridSize)
+        grid.translatesAutoresizingMaskIntoConstraints = true
+        scroll.documentView = grid
+        documentView = grid
+        scroll.heightAnchor.constraint(equalToConstant: gridSize.height + 6).isActive = true
 
         root.addArrangedSubview(scroll)
 
@@ -155,19 +179,13 @@ private final class SwitcherOverlayController {
             root.bottomAnchor.constraint(equalTo: content.bottomAnchor),
         ])
 
-        let screenWidth = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame.width ?? 1440
-        let maxWidth = screenWidth - 80
-        let desiredWidth = rowSize.width + 30
-        let panelWidth = max(360, min(maxWidth, desiredWidth))
-        let panelHeight = rowSize.height + 58
+        let desiredWidth = gridSize.width + horizontalPadding
+        let panelWidth = max(360, min(maxPanelWidth, desiredWidth))
+        let panelHeight = gridSize.height + 58
 
         panel.setContentSize(NSSize(width: panelWidth, height: panelHeight))
         center(panel: panel)
-
-        scroll.hasHorizontalScroller = rowSize.width > panelWidth - 30
-        if let selectedCard = cardViews[safe: selectedIndex] {
-            scroll.contentView.scrollToVisible(selectedCard.frame)
-        }
+        scroll.hasHorizontalScroller = gridSize.width > panelWidth - horizontalPadding
 
         updateSelection(selectedIndex)
         panel.orderFrontRegardless()
@@ -292,8 +310,10 @@ private final class SwitcherOverlayController {
     private func scrollSelectedCardIntoView(_ index: Int) {
         guard let panel, let content = panel.contentView,
               let scroll = findScrollView(in: content),
-              let card = cardViews[safe: index] else { return }
-        scroll.contentView.scrollToVisible(card.frame)
+              let card = cardViews[safe: index],
+              let documentView else { return }
+        let rect = card.convert(card.bounds, to: documentView)
+        scroll.contentView.scrollToVisible(rect)
     }
 
     private func findScrollView(in view: NSView) -> NSScrollView? {
@@ -311,6 +331,7 @@ private final class SwitcherOverlayController {
         panel?.orderOut(nil)
         entries = []
         currentAppIcon = nil
+        documentView = nil
         cardViews.removeAll()
         imageViews.removeAll()
     }

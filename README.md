@@ -22,6 +22,7 @@ A menu bar item (`⌘⇥`) should appear. Use the menu to quit.
 - Keep holding `Alt` and press `Tab` repeatedly to choose
 - Release `Alt`: focus the selected window
 - `Esc` while overlay is visible: cancel
+- Many windows are shown in up to two rows of thumbnails (horizontal scrolling only if they still don't fit)
 
 ## Permissions required
 macOS will block global key capture and window control until you grant permissions:
