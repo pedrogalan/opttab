@@ -433,8 +433,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         updateStatusItemVisibility()
-        requestAccessibilityIfNeeded()
-        requestScreenRecordingIfNeeded()
+        requestPermissionsIfNeeded()
         setupEventTap()
         LaunchAtLogin.syncIfEnabled()
 
@@ -487,18 +486,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = item
     }
 
-    private func requestAccessibilityIfNeeded() {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
+    func applicationDidBecomeActive(_ notification: Notification) {
+        retryEventTapIfNeeded()
     }
 
-    private func requestScreenRecordingIfNeeded() {
-        if !CGPreflightScreenCaptureAccess() {
-            _ = CGRequestScreenCaptureAccess()
+    private func retryEventTapIfNeeded() {
+        guard eventTap == nil,
+              Permission.accessibility.isGranted,
+              Permission.inputMonitoring.isGranted else { return }
+        setupEventTap()
+    }
+
+    private func requestPermissionsIfNeeded() {
+        for permission in Permission.allCases where !permission.isGranted {
+            permission.request()
         }
     }
 
     private func setupEventTap() {
+        guard eventTap == nil else { return }
         let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
         let callback: CGEventTapCallBack = { _, type, event, refcon in
             guard let refcon = refcon else { return Unmanaged.passUnretained(event) }
@@ -580,8 +586,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func beginSwitch(reverse: Bool) {
-        guard AXIsProcessTrusted() else {
-            requestAccessibilityIfNeeded()
+        guard Permission.accessibility.isGranted, Permission.inputMonitoring.isGranted else {
+            for permission in [Permission.accessibility, .inputMonitoring] where !permission.isGranted {
+                permission.request()
+            }
             return
         }
         guard let frontApp = NSWorkspace.shared.frontmostApplication,

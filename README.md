@@ -45,11 +45,21 @@ swift build -c release
 
 ## Permissions required
 macOS will block global key capture and window control until you grant permissions:
-1. **Accessibility**: System Settings → Privacy & Security → Accessibility → allow the app/binary running `CmdTab`.
-2. **Input Monitoring** (may be required on newer macOS for event taps): System Settings → Privacy & Security → Input Monitoring → allow it.
+1. **Accessibility**: needed to enumerate and focus other apps' windows.
+2. **Input Monitoring**: needed for the global `Alt+Tab` event tap.
 3. **Screen Recording**: needed for window thumbnails. Without it the switcher falls back to showing the app icon on each card.
 
-When running via `swift build`/`swift run`, the executable is inside `.build/debug/CmdTab`; you may need to grant permission to that binary or to the launching terminal/IDE, then relaunch. When running `dist/CmdTab.app`, grant permissions to **CmdTab** (the app). Rebuilding with a new ad-hoc signature may require granting permissions again.
+The Settings window shows each permission as **Granted** or **Missing**, with an **Open…** button that jumps to the right System Settings pane. CmdTab reconnects its event tap automatically when Accessibility/Input Monitoring are granted.
+
+Because the app is ad-hoc signed, rebuilding can change its signature and macOS may stop honoring previously granted permissions. If Alt+Tab stops working after a rebuild, reset and re-grant:
+
+```bash
+tccutil reset Accessibility dev.cmdtab
+tccutil reset ListenEvent dev.cmdtab
+tccutil reset ScreenCapture dev.cmdtab
+```
+
+When running via `swift build`/`swift run`, the executable is inside `.build/debug/CmdTab`; you may need to grant permission to that binary or to the launching terminal/IDE, then relaunch.
 
 ## Notes / MVP limitations
 - Uses windows from the app's Accessibility `AXWindows` list (minimized windows filtered best-effort).
