@@ -625,8 +625,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switchGeneration += 1
         let generation = switchGeneration
 
-        if entries.count > 1 {
-            showSwitcher(app: frontApp, entries: entries, reverse: reverse)
+        if entries.isEmpty {
+            // No windows on this Desktop. Wait for the scan to see whether the app
+            // has windows on another Desktop; if it has none, nothing is shown.
             if needsScan {
                 startOtherSpaceScan(
                     app: frontApp,
@@ -634,20 +635,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     knownIDs: result.knownIDs,
                     generation: generation,
                     reverse: reverse,
-                    deferred: false
+                    deferred: true
                 )
             }
-        } else if needsScan {
-            // A single window on this Desktop doesn't mean the app has only one
-            // window. Wait for the scan instead of flashing a one-card overlay,
-            // and only show it if windows on another Desktop show up.
+            return
+        }
+
+        // Show even a single window: an empty screen would look like CmdTab is
+        // broken rather than like the app only has one window.
+        showSwitcher(app: frontApp, entries: entries, reverse: reverse)
+        if needsScan {
             startOtherSpaceScan(
                 app: frontApp,
                 baseEntries: entries,
                 knownIDs: result.knownIDs,
                 generation: generation,
                 reverse: reverse,
-                deferred: true
+                deferred: false
             )
         }
     }
@@ -783,7 +787,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Scans for off-Desktop windows off the event-tap thread. Results are applied
     /// on the main thread, either by appending cards to a visible switcher or by
-    /// showing it for the first time (when only one on-Desktop window was known).
+    /// showing it for the first time (when no on-Desktop windows were known).
     private func startOtherSpaceScan(
         app: NSRunningApplication,
         baseEntries: [WindowEntry],
@@ -806,7 +810,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
                 if deferred {
                     guard !self.switching,
-                          baseEntries.count + extras.count > 1,
                           CGEventSource.flagsState(.combinedSessionState).contains(.maskAlternate),
                           NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else {
                         return
