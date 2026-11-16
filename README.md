@@ -27,6 +27,9 @@ A menu bar item (`⌘⇥`) should appear. **A settings window opens on every lau
 ## Settings
 - **Run at startup**: writes/removes a per-user LaunchAgent at `~/Library/LaunchAgents/dev.cmdtab.login.plist` and bootstraps it into the current session.
 - **Show menu bar icon**: shows/hides the `⌘⇥` menu bar item (persisted in `UserDefaults`). If hidden, launch CmdTab again to reopen Settings — the second launch asks the running instance to show Settings, then exits.
+- **Include windows from other spaces**: off by default. When off, only windows currently visible on the active Space are listed. When on, all of the app's windows are listed, including those on other Spaces.
+- **Thumbnail size**: small, medium, or large. Changes the overlay card and thumbnail dimensions.
+- **About** tab: app version, description, and a link to the GitHub repository.
 - The LaunchAgent points at whichever executable is currently running (inside `dist/CmdTab.app` or the `.build/...` binary). Running from a different location updates the plist on next launch.
 
 ## Release build
@@ -63,7 +66,8 @@ When running via `swift build`/`swift run`, the executable is inside `.build/deb
 
 ## Notes / MVP limitations
 - Uses windows from the app's Accessibility `AXWindows` list (minimized windows filtered best-effort).
-- Overlay shows a horizontal row of window thumbnails (screenshots) with titles; falls back to the app icon if thumbnails are unavailable.
+- By default, windows not currently on the active Space are filtered out using the on-screen Core Graphics window list. Windows whose window ID can't be resolved are kept conservatively.
+- Overlay shows a grid of window thumbnails (screenshots) with titles; falls back to the app icon if thumbnails are unavailable.
 - Thumbnails are captured asynchronously and cached per window (cache is used to show cards instantly).
   - Windows with no cache entry are captured immediately when the switcher opens.
   - If `Alt` is held with no `Tab` presses for 3 seconds, visible thumbnails refresh; this repeats every 3 seconds while idle.

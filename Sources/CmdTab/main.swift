@@ -63,10 +63,10 @@ private final class ThumbnailCache {
 }
 
 private final class SwitcherOverlayController {
-    private static let cardSize = NSSize(width: 200, height: 172)
-    private static let thumbSize = NSSize(width: 184, height: 116)
     private static let idleRefreshInterval: TimeInterval = 3
 
+    private var cardSize = ThumbnailSize.medium.cardSize
+    private var thumbSize = ThumbnailSize.medium.thumbSize
     private var panel: NSPanel?
     private var cardViews: [NSView] = []
     private var imageViews: [NSImageView] = []
@@ -77,11 +77,20 @@ private final class SwitcherOverlayController {
     private var idleWorkItem: DispatchWorkItem?
     private let thumbnailCache = ThumbnailCache()
 
-    func show(appName: String, appIcon: NSImage?, entries: [WindowEntry], selectedIndex: Int) {
+    func show(
+        appName: String,
+        appIcon: NSImage?,
+        entries: [WindowEntry],
+        selectedIndex: Int,
+        thumbnailSize: ThumbnailSize
+    ) {
         if panel == nil {
             createPanel()
         }
         guard let panel, let content = panel.contentView else { return }
+
+        cardSize = thumbnailSize.cardSize
+        thumbSize = thumbnailSize.thumbSize
 
         generation += 1
         let gen = generation
@@ -126,7 +135,7 @@ private final class SwitcherOverlayController {
 
         let maxCardsPerRow = max(
             1,
-            Int((maxPanelWidth - horizontalPadding + cardSpacing) / (Self.cardSize.width + cardSpacing))
+            Int((maxPanelWidth - horizontalPadding + cardSpacing) / (cardSize.width + cardSpacing))
         )
         let rowCount = entries.count <= maxCardsPerRow ? 1 : 2
         let cardsInFirstRow = rowCount == 1 ? entries.count : Int(ceil(Double(entries.count) / 2.0))
@@ -205,10 +214,10 @@ private final class SwitcherOverlayController {
         card.layer?.borderWidth = 2
         card.layer?.borderColor = NSColor.clear.cgColor
         card.translatesAutoresizingMaskIntoConstraints = false
-        card.widthAnchor.constraint(equalToConstant: Self.cardSize.width).isActive = true
-        card.heightAnchor.constraint(equalToConstant: Self.cardSize.height).isActive = true
+        card.widthAnchor.constraint(equalToConstant: cardSize.width).isActive = true
+        card.heightAnchor.constraint(equalToConstant: cardSize.height).isActive = true
 
-        let imageView = NSImageView(image: Self.placeholderThumbnail(appIcon: appIcon, size: Self.thumbSize))
+        let imageView = NSImageView(image: Self.placeholderThumbnail(appIcon: appIcon, size: thumbSize))
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.wantsLayer = true
         imageView.layer?.cornerRadius = 6
@@ -229,8 +238,8 @@ private final class SwitcherOverlayController {
         NSLayoutConstraint.activate([
             imageView.topAnchor.constraint(equalTo: card.topAnchor, constant: 8),
             imageView.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-            imageView.widthAnchor.constraint(equalToConstant: Self.thumbSize.width),
-            imageView.heightAnchor.constraint(equalToConstant: Self.thumbSize.height),
+            imageView.widthAnchor.constraint(equalToConstant: thumbSize.width),
+            imageView.heightAnchor.constraint(equalToConstant: thumbSize.height),
 
             label.topAnchor.constraint(equalTo: imageView.bottomAnchor, constant: 6),
             label.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 8),
@@ -244,20 +253,20 @@ private final class SwitcherOverlayController {
         guard imageViews.indices.contains(index) else { return }
 
         guard let windowID = entry.windowID else {
-            imageViews[index].image = Self.placeholderThumbnail(appIcon: currentAppIcon, size: Self.thumbSize)
+            imageViews[index].image = Self.placeholderThumbnail(appIcon: currentAppIcon, size: thumbSize)
             return
         }
 
         if let cached = thumbnailCache.cachedImage(for: windowID) {
             imageViews[index].image = cached
         } else {
-            imageViews[index].image = Self.placeholderThumbnail(appIcon: currentAppIcon, size: Self.thumbSize)
+            imageViews[index].image = Self.placeholderThumbnail(appIcon: currentAppIcon, size: thumbSize)
             captureThumbnail(windowID: windowID, generation: gen)
         }
     }
 
     private func captureThumbnail(windowID: CGWindowID, generation gen: Int) {
-        thumbnailCache.capture(windowID: windowID, size: Self.thumbSize) { [weak self] image in
+        thumbnailCache.capture(windowID: windowID, size: thumbSize) { [weak self] image in
             guard let self, let image, self.generation == gen else { return }
             guard let index = self.entries.firstIndex(where: { $0.windowID == windowID }),
                   self.imageViews.indices.contains(index) else { return }
@@ -403,13 +412,12 @@ private extension Array {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private static let showMenuBarIconDefaultsKey = "showMenuBarIcon"
-
     private var statusItem: NSStatusItem?
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private let overlay = SwitcherOverlayController()
     private let settingsController = SettingsWindowController()
+    private let preferences = Preferences.shared
 
     private var switching = false
     private var switchApp: NSRunningApplication?
@@ -418,14 +426,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var showMenuBarIcon: Bool {
         get {
-            let defaults = UserDefaults.standard
-            if defaults.object(forKey: Self.showMenuBarIconDefaultsKey) == nil {
-                return true
-            }
-            return defaults.bool(forKey: Self.showMenuBarIconDefaultsKey)
+            preferences.showMenuBarIcon
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: Self.showMenuBarIconDefaultsKey)
+            preferences.showMenuBarIcon = newValue
             updateStatusItemVisibility()
         }
     }
@@ -437,9 +441,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupEventTap()
         LaunchAtLogin.syncIfEnabled()
 
-        settingsController.isMenuBarIconVisible = { [weak self] in
-            self?.showMenuBarIcon ?? true
-        }
         settingsController.onShowMenuBarIconChanged = { [weak self] visible in
             self?.showMenuBarIcon = visible
         }
@@ -594,7 +595,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         guard let frontApp = NSWorkspace.shared.frontmostApplication,
               frontApp.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
-        let entries = windowEntries(for: frontApp)
+        let entries = windowEntries(
+            for: frontApp,
+            includeOtherSpaces: preferences.includeWindowsFromOtherSpaces
+        )
         guard entries.count > 1 else { return }
 
         switchApp = frontApp
@@ -607,7 +611,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ? (focusedIdx - 1 + entries.count) % entries.count
             : (focusedIdx + 1) % entries.count
 
-        overlay.show(appName: frontApp.localizedName ?? "App", appIcon: frontApp.icon, entries: entries, selectedIndex: selectedIndex)
+        overlay.show(
+            appName: frontApp.localizedName ?? "App",
+            appIcon: frontApp.icon,
+            entries: entries,
+            selectedIndex: selectedIndex,
+            thumbnailSize: preferences.thumbnailSize
+        )
     }
 
     private func advanceSelection(reverse: Bool) {
@@ -641,13 +651,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         overlay.hide()
     }
 
-    private func windowEntries(for app: NSRunningApplication) -> [WindowEntry] {
+    private func windowEntries(for app: NSRunningApplication, includeOtherSpaces: Bool) -> [WindowEntry] {
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
         var windowsRef: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef)
         guard result == .success, let windows = windowsRef as? [AXUIElement] else { return [] }
 
         let cgWindows = onScreenWindowInfo(for: app.processIdentifier)
+        let onScreenIDs = Set(cgWindows.map(\.id))
         var usedIDs: Set<CGWindowID> = []
 
         return windows.compactMap { win in
@@ -668,6 +679,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             let windowID = resolveWindowID(for: win, title: title, candidates: cgWindows, used: &usedIDs)
+
+            // Windows on other spaces are not in the on-screen window list. Keep
+            // windows whose ID we could not resolve (conservative fallback).
+            if !includeOtherSpaces, let windowID, !onScreenIDs.contains(windowID) {
+                return nil
+            }
+
             return WindowEntry(element: win, title: title, windowID: windowID)
         }
     }
