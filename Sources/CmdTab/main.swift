@@ -427,6 +427,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let otherSpaceCacheLifetime: TimeInterval = 10
     private let otherSpaceScanBudget: TimeInterval = 0.25
     private var otherSpaceElementsCache: [pid_t: (date: Date, elements: [CGWindowID: AXUIElement])] = [:]
+    private let otherSpaceScanQueue = DispatchQueue(
+        label: "cmdtab.other-space-scan",
+        qos: .userInitiated,
+        attributes: .concurrent
+    )
+    private var switchGeneration = 0
 
     private var showMenuBarIcon: Bool {
         get {
@@ -599,25 +605,67 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         guard let frontApp = NSWorkspace.shared.frontmostApplication,
               frontApp.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
-        let entries = windowEntries(
-            for: frontApp,
-            includeOtherSpaces: preferences.includeWindowsFromOtherSpaces
-        )
-        guard entries.count > 1 else { return }
 
-        switchApp = frontApp
+        let includeOthers = preferences.includeWindowsFromOtherSpaces
+        let result = windowEntries(for: frontApp, includeOtherSpaces: includeOthers)
+        var entries = result.entries
+        var needsScan = false
+
+        if includeOthers, PrivateAX.shared.isAvailable {
+            if let extras = cachedOtherSpaceEntries(
+                for: frontApp.processIdentifier,
+                excluding: result.knownIDs
+            ) {
+                entries.append(contentsOf: extras)
+            } else {
+                needsScan = true
+            }
+        }
+
+        switchGeneration += 1
+        let generation = switchGeneration
+
+        if entries.count > 1 {
+            showSwitcher(app: frontApp, entries: entries, reverse: reverse)
+            if needsScan {
+                startOtherSpaceScan(
+                    app: frontApp,
+                    baseEntries: entries,
+                    knownIDs: result.knownIDs,
+                    generation: generation,
+                    reverse: reverse,
+                    deferred: false
+                )
+            }
+        } else if needsScan {
+            // A single window on this Desktop doesn't mean the app has only one
+            // window. Wait for the scan instead of flashing a one-card overlay,
+            // and only show it if windows on another Desktop show up.
+            startOtherSpaceScan(
+                app: frontApp,
+                baseEntries: entries,
+                knownIDs: result.knownIDs,
+                generation: generation,
+                reverse: reverse,
+                deferred: true
+            )
+        }
+    }
+
+    private func showSwitcher(app: NSRunningApplication, entries: [WindowEntry], reverse: Bool) {
+        switchApp = app
         switchEntries = entries
         switching = true
 
         // Start from focused window, then move once in requested direction (like Cmd+Tab behavior)
-        let focusedIdx = focusedWindowIndex(for: frontApp, entries: entries) ?? 0
+        let focusedIdx = focusedWindowIndex(for: app, entries: entries) ?? 0
         selectedIndex = reverse
             ? (focusedIdx - 1 + entries.count) % entries.count
             : (focusedIdx + 1) % entries.count
 
         overlay.show(
-            appName: frontApp.localizedName ?? "App",
-            appIcon: frontApp.icon,
+            appName: app.localizedName ?? "App",
+            appIcon: app.icon,
             entries: entries,
             selectedIndex: selectedIndex,
             thumbnailSize: preferences.thumbnailSize
@@ -648,6 +696,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func endSession() {
+        switchGeneration += 1
         switching = false
         switchApp = nil
         switchEntries = []
@@ -655,7 +704,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         overlay.hide()
     }
 
-    private func windowEntries(for app: NSRunningApplication, includeOtherSpaces: Bool) -> [WindowEntry] {
+    private func windowEntries(
+        for app: NSRunningApplication,
+        includeOtherSpaces: Bool
+    ) -> (entries: [WindowEntry], knownIDs: Set<CGWindowID>) {
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
         var windowsRef: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef)
@@ -698,39 +750,97 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             entries.append(WindowEntry(element: win, title: title, windowID: windowID))
         }
 
-        guard includeOtherSpaces, PrivateAX.shared.isAvailable else { return entries }
-
-        entries.append(contentsOf: otherSpaceEntries(for: app.processIdentifier, excluding: knownIDs))
-        return entries
+        return (entries, knownIDs)
     }
 
-    /// Windows that live on other Spaces are missing from `kAXWindows`. Recover
-    /// their AX elements with the remote-token SPI.
+    /// Extras from a fresh cache, or `nil` when the cache has expired and a
+    /// background scan is needed.
     ///
     /// The cache holds *every* window element found for the process, not just the
     /// ones that were off-Space at scan time. Which windows are "extra" depends on
     /// the active Desktop, so it must be recomputed per call; otherwise switching
     /// to the other Desktop finds only a stale, now-empty extra set.
-    private func otherSpaceEntries(for pid: pid_t, excluding knownIDs: Set<CGWindowID>) -> [WindowEntry] {
-        let cached = otherSpaceElementsCache[pid]
-        let elements: [CGWindowID: AXUIElement]
+    private func cachedOtherSpaceEntries(
+        for pid: pid_t,
+        excluding knownIDs: Set<CGWindowID>
+    ) -> [WindowEntry]? {
+        guard let cached = otherSpaceElementsCache[pid],
+              Date().timeIntervalSince(cached.date) < otherSpaceCacheLifetime else { return nil }
+        return makeOtherSpaceEntries(from: cached.elements, excluding: knownIDs)
+    }
 
-        if let cached, Date().timeIntervalSince(cached.date) < otherSpaceCacheLifetime {
-            elements = cached.elements
-        } else {
-            elements = PrivateAX.shared.allWindowElements(pid: pid, budget: otherSpaceScanBudget)
-            otherSpaceElementsCache[pid] = (Date(), elements)
-            if otherSpaceElementsCache.count > 20,
-               let oldest = otherSpaceElementsCache.min(by: { $0.value.date < $1.value.date }) {
-                otherSpaceElementsCache.removeValue(forKey: oldest.key)
-            }
-        }
-
-        return elements.compactMap { windowID, element in
+    private func makeOtherSpaceEntries(
+        from elements: [CGWindowID: AXUIElement],
+        excluding knownIDs: Set<CGWindowID>
+    ) -> [WindowEntry] {
+        elements.compactMap { windowID, element in
             guard !knownIDs.contains(windowID) else { return nil }
             // Cached elements go stale when a window closes.
             guard PrivateAX.shared.isAlive(element) else { return nil }
             return makeWindowEntry(element: element, windowID: windowID)
+        }
+    }
+
+    /// Scans for off-Desktop windows off the event-tap thread. Results are applied
+    /// on the main thread, either by appending cards to a visible switcher or by
+    /// showing it for the first time (when only one on-Desktop window was known).
+    private func startOtherSpaceScan(
+        app: NSRunningApplication,
+        baseEntries: [WindowEntry],
+        knownIDs: Set<CGWindowID>,
+        generation: Int,
+        reverse: Bool,
+        deferred: Bool
+    ) {
+        let pid = app.processIdentifier
+        otherSpaceScanQueue.async { [weak self] in
+            guard let self else { return }
+            let elements = PrivateAX.shared.allWindowElements(pid: pid, budget: self.otherSpaceScanBudget)
+
+            DispatchQueue.main.async {
+                guard generation == self.switchGeneration else { return }
+                self.storeOtherSpaceCache(pid: pid, elements: elements)
+
+                let extras = self.makeOtherSpaceEntries(from: elements, excluding: knownIDs)
+                guard !extras.isEmpty else { return }
+
+                if deferred {
+                    guard !self.switching,
+                          baseEntries.count + extras.count > 1,
+                          CGEventSource.flagsState(.combinedSessionState).contains(.maskAlternate),
+                          NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else {
+                        return
+                    }
+                    self.showSwitcher(app: app, entries: baseEntries + extras, reverse: reverse)
+                } else {
+                    guard self.switching,
+                          self.switchApp?.processIdentifier == pid else { return }
+
+                    let existingIDs = Set(self.switchEntries.compactMap(\.windowID))
+                    let newEntries = extras.filter { entry in
+                        guard let id = entry.windowID else { return true }
+                        return !existingIDs.contains(id)
+                    }
+                    guard !newEntries.isEmpty else { return }
+
+                    self.switchEntries.append(contentsOf: newEntries)
+                    self.overlay.show(
+                        appName: app.localizedName ?? "App",
+                        appIcon: app.icon,
+                        entries: self.switchEntries,
+                        selectedIndex: self.selectedIndex,
+                        thumbnailSize: self.preferences.thumbnailSize
+                    )
+                }
+            }
+        }
+    }
+
+    private func storeOtherSpaceCache(pid: pid_t, elements: [CGWindowID: AXUIElement]) {
+        otherSpaceElementsCache[pid] = (Date(), elements)
+        if otherSpaceElementsCache.count > 20,
+           let oldest = otherSpaceElementsCache.min(by: { $0.value.date < $1.value.date }) {
+            otherSpaceElementsCache.removeValue(forKey: oldest.key)
         }
     }
 
