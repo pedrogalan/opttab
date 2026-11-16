@@ -77,6 +77,11 @@ final class SettingsWindowController: NSObject {
         generalItem.view = makeGeneralView()
         tabView.addTabViewItem(generalItem)
 
+        let permissionsItem = NSTabViewItem(identifier: "permissions")
+        permissionsItem.label = "Permissions"
+        permissionsItem.view = makePermissionsView()
+        tabView.addTabViewItem(permissionsItem)
+
         let aboutItem = NSTabViewItem(identifier: "about")
         aboutItem.label = "About"
         aboutItem.view = makeAboutView()
@@ -115,12 +120,44 @@ final class SettingsWindowController: NSObject {
         thumbnailRow.alignment = .centerY
         thumbnailRow.spacing = 8
 
-        let separator = NSBox()
-        separator.boxType = .separator
-        separator.translatesAutoresizingMaskIntoConstraints = false
+        let hint = NSTextField(
+            wrappingLabelWithString: "Press Alt+Tab to switch between windows of the current app. Reopen this window by launching CmdTab again."
+        )
+        hint.font = NSFont.systemFont(ofSize: 11)
+        hint.textColor = .secondaryLabelColor
+        hint.preferredMaxLayoutWidth = 430
 
-        let permissionsHeader = NSTextField(labelWithString: "Permissions")
-        permissionsHeader.font = NSFont.boldSystemFont(ofSize: 12)
+        let stack = NSStackView(views: [
+            runAtStartupCheckbox,
+            showMenuBarIconCheckbox,
+            includeOtherSpacesCheckbox,
+            thumbnailRow,
+            hint,
+        ])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -16),
+        ])
+
+        return view
+    }
+
+    private func makePermissionsView() -> NSView {
+        let view = NSView(frame: NSRect(x: 0, y: 0, width: 460, height: 400))
+
+        let intro = NSTextField(
+            wrappingLabelWithString: "Grant these permissions in System Settings. CmdTab reconnects automatically when you return."
+        )
+        intro.font = NSFont.systemFont(ofSize: 12)
+        intro.preferredMaxLayoutWidth = 430
 
         warningLabel.font = NSFont.systemFont(ofSize: 11)
         warningLabel.textColor = .systemOrange
@@ -154,24 +191,7 @@ final class SettingsWindowController: NSObject {
             permissionRows.append(row)
         }
 
-        let hint = NSTextField(
-            wrappingLabelWithString: "Press Alt+Tab to switch between windows of the current app. Reopen this window by launching CmdTab again."
-        )
-        hint.font = NSFont.systemFont(ofSize: 11)
-        hint.textColor = .secondaryLabelColor
-        hint.preferredMaxLayoutWidth = 430
-
-        let stack = NSStackView(views: [
-            runAtStartupCheckbox,
-            showMenuBarIconCheckbox,
-            includeOtherSpacesCheckbox,
-            thumbnailRow,
-            separator,
-            permissionsHeader,
-            warningLabel,
-        ] + permissionRows + [
-            hint,
-        ])
+        let stack = NSStackView(views: [intro, warningLabel] + permissionRows)
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
@@ -183,7 +203,6 @@ final class SettingsWindowController: NSObject {
             stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             stack.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -16),
-            separator.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -32),
         ])
 
         return view
