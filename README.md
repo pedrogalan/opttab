@@ -2,7 +2,7 @@
 
 Minimal macOS menu bar app that captures `Alt+Tab` and shows an overlay to switch between windows of the **current/frontmost app** (Cmd+Tab-style, but per-app).
 
-CmdTab 1.0.0 supports macOS 13 and later.
+CmdTab 1.0.1 supports macOS 13 and later.
 
 ## Stack
 - Swift + AppKit (native)
@@ -45,6 +45,35 @@ A menu bar item with the CmdTab arrow icon should appear. **A settings window op
 
 This produces a universal app and ZIP archive in `dist/` for Intel and Apple silicon Macs.
 
+## Releasing
+
+1. Bump `CFBundleShortVersionString` (and `CFBundleVersion`) in `App/Info.plist`.
+2. Update the version line at the top of this README and add `RELEASE_NOTES_<version>.md`.
+3. Build the universal app and archive:
+
+   ```bash
+   ./build-release.sh
+   ```
+
+   This writes `dist/CmdTab-<version>.app` and `dist/CmdTab-<version>-macos-universal.zip`.
+4. Commit the version bump, notes, and README, then tag and push:
+
+   ```bash
+   git commit -am "Prepare CmdTab <version> release"
+   git tag v<version>
+   git push origin master v<version>
+   ```
+5. Create the GitHub release with the archive attached (requires the
+   [GitHub CLI](https://cli.github.com) and `gh auth login`):
+
+   ```bash
+   gh release create v<version> \
+     --title "CmdTab <version>" \
+     --notes-file RELEASE_NOTES_<version>.md \
+     dist/CmdTab-<version>-macos-universal.zip
+   ```
+
+
 ## How it works
 - `Alt+Tab`: open overlay (windows of the frontmost app) and move selection forward
 - `Alt+Shift+Tab`: move selection backward
@@ -72,7 +101,7 @@ tccutil reset ScreenCapture dev.cmdtab
 When running via `swift build`/`swift run`, the executable is inside `.build/debug/CmdTab`; you may need to grant permission to that binary or to the launching terminal/IDE, then relaunch.
 
 ## Notes / MVP limitations
-- Uses windows from the app's Accessibility `AXWindows` list (minimized windows filtered best-effort).
+- Uses windows from the app's Accessibility `AXWindows` list, plus windows on other Desktops resolved through the private SPI when enabled.
 - By default, only windows on the active Desktop are enumerated. The public `kAXWindowsAttribute` only returns active-Desktop windows on modern macOS; when "Include windows from other spaces" is enabled, CmdTab uses the private remote-token Accessibility SPI to recover off-Desktop window elements. This is best-effort and falls back gracefully.
 - Overlay shows a grid of window thumbnails (screenshots) with titles; falls back to the app icon if thumbnails are unavailable.
 - Thumbnails are captured asynchronously and cached per window (cache is used to show cards instantly).
