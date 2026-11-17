@@ -61,8 +61,9 @@ This produces a universal app and ZIP archive in `dist/` for Intel and Apple sil
 4. Commit the version bump, notes, and README, then tag and push:
 
    ```bash
-   git commit -am "Prepare CmdTab <version> release"
-   git tag v<version>
+   git add App/Info.plist README.md RELEASE_NOTES_<version>.md
+   git commit -m "Prepare CmdTab <version> release"
+   git tag -a v<version> -m "CmdTab <version>"
    git push origin master v<version>
    ```
 5. Create the GitHub release with the archive attached (requires the
