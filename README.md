@@ -55,7 +55,9 @@ This produces a universal app and ZIP archive in `dist/` for Intel and Apple sil
    ./build-release.sh
    ```
 
-   This writes `dist/CmdTab-<version>.app` and `dist/CmdTab-<version>-macos-universal.zip`.
+   This writes `dist/CmdTab.app` and `dist/CmdTab-<version>-macos-universal.zip`.
+   The bundle is always named `CmdTab.app`; the version comes from `Info.plist`
+   and the archive name, so macOS never shows a versioned app name.
 4. Commit the version bump, notes, and README, then tag and push:
 
    ```bash

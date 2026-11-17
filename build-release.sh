@@ -5,7 +5,9 @@ cd "$(dirname "$0")"
 
 APP_NAME="CmdTab"
 VERSION=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' App/Info.plist)
-APP_BUNDLE="dist/${APP_NAME}-${VERSION}.app"
+# The bundle is always named CmdTab.app; the version lives in Info.plist (shown in
+# About) and in the archive filename, never in the bundle name that macOS displays.
+APP_BUNDLE="dist/${APP_NAME}.app"
 ARCHIVE="dist/${APP_NAME}-${VERSION}-macos-universal.zip"
 BUILD_DIR=".build/release-universal"
 
