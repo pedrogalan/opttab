@@ -274,7 +274,7 @@ private final class SwitcherOverlayController {
         }
     }
 
-    /// Re-captures every visible card. Called after Alt has been held idle for a while.
+    /// Re-captures every visible card. Called after Option has been held idle for a while.
     func refreshThumbnails() {
         guard isVisible, CGPreflightScreenCaptureAccess() else { return }
         let gen = generation
@@ -489,7 +489,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = item.button {
             applyMenuBarIcon(to: button)
-            button.toolTip = "OptTab (Alt+Tab window switcher)"
+            button.toolTip = "OptTab (Option+Tab window switcher)"
         }
 
         let menu = NSMenu()
@@ -573,8 +573,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if type == .flagsChanged {
-            let altDown = event.flags.contains(.maskAlternate)
-            if switching && !altDown {
+            let optionDown = event.flags.contains(.maskAlternate)
+            if switching && !optionDown {
                 commitSwitch()
             }
             return Unmanaged.passUnretained(event)

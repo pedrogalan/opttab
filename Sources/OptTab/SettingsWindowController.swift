@@ -121,7 +121,7 @@ final class SettingsWindowController: NSObject {
         thumbnailRow.spacing = 8
 
         let hint = NSTextField(
-            wrappingLabelWithString: "Press Alt+Tab to switch between windows of the current app. Reopen this window by launching OptTab again."
+            wrappingLabelWithString: "Press Option+Tab to switch between windows of the current app. Reopen this window by launching OptTab again."
         )
         hint.font = NSFont.systemFont(ofSize: 11)
         hint.textColor = .secondaryLabelColor
@@ -227,7 +227,7 @@ final class SettingsWindowController: NSObject {
         versionLabel.alignment = .center
 
         let description = NSTextField(
-            wrappingLabelWithString: "A per-app Alt+Tab window switcher for macOS. Hold Alt and press Tab to cycle through the windows of the frontmost app."
+            wrappingLabelWithString: "A per-app Option+Tab window switcher for macOS. Hold Option and press Tab to cycle through the windows of the frontmost app."
         )
         description.font = NSFont.systemFont(ofSize: 12)
         description.alignment = .center
@@ -246,6 +246,11 @@ final class SettingsWindowController: NSObject {
         copyright.textColor = .tertiaryLabelColor
         copyright.alignment = .center
 
+        let license = NSTextField(labelWithString: "Licensed under the MIT License")
+        license.font = NSFont.systemFont(ofSize: 10)
+        license.textColor = .tertiaryLabelColor
+        license.alignment = .center
+
         let stack = NSStackView(views: [
             iconView,
             nameLabel,
@@ -253,6 +258,7 @@ final class SettingsWindowController: NSObject {
             description,
             githubButton,
             copyright,
+            license,
         ])
         stack.orientation = .vertical
         stack.alignment = .centerX
@@ -289,7 +295,7 @@ final class SettingsWindowController: NSObject {
         let missingScreenRecording = !Permission.screenRecording.isGranted
 
         if missingCore {
-            warningLabel.stringValue = "Alt+Tab needs Accessibility and Input Monitoring. Grant them, then return here; OptTab reconnects automatically."
+            warningLabel.stringValue = "Option+Tab needs Accessibility and Input Monitoring. Grant them, then return here; OptTab reconnects automatically."
             warningLabel.isHidden = false
         } else if missingScreenRecording {
             warningLabel.stringValue = "Screen Recording is needed for window thumbnails. Without it, cards show the app icon."

@@ -47,3 +47,7 @@ Window availability and ordering can vary by app. Some apps expose their windows
 ## Uninstall
 
 Turn off **Run at startup** in Settings, quit OptTab from the menu bar, then remove `OptTab.app` from Applications.
+
+## License
+
+OptTab is available under the [MIT License](LICENSE).
