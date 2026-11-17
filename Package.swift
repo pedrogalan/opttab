@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "CmdTab",
+    name: "OptTab",
     platforms: [.macOS(.v13)],
     targets: [
         .executableTarget(
-            name: "CmdTab",
-            path: "Sources/CmdTab"
+            name: "OptTab",
+            path: "Sources/OptTab"
         )
     ]
 )

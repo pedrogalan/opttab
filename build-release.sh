@@ -3,9 +3,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-APP_NAME="CmdTab"
+APP_NAME="OptTab"
 VERSION=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' App/Info.plist)
-# The bundle is always named CmdTab.app; the version lives in Info.plist (shown in
+# The bundle is always named OptTab.app; the version lives in Info.plist (shown in
 # About) and in the archive filename, never in the bundle name that macOS displays.
 APP_BUNDLE="dist/${APP_NAME}.app"
 ARCHIVE="dist/${APP_NAME}-${VERSION}-macos-universal.zip"
@@ -23,7 +23,7 @@ lipo -create \
   .build/release-x86_64/out/Products/Release/"$APP_NAME" \
   -output "$BUILD_DIR/$APP_NAME"
 
-CMDTAB_BINARY="$BUILD_DIR/$APP_NAME" ./build-app.sh "$APP_BUNDLE"
+OPTTAB_BINARY="$BUILD_DIR/$APP_NAME" ./build-app.sh "$APP_BUNDLE"
 ditto -c -k --sequesterRsrc --keepParent "$APP_BUNDLE" "$ARCHIVE"
 
 echo "Created universal app: $APP_BUNDLE"

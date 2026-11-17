@@ -18,7 +18,7 @@ private final class ThumbnailCache {
     private var entries: [CGWindowID: Entry] = [:]
     private let lock = NSLock()
     private let queue = DispatchQueue(
-        label: "cmdtab.thumbnail-capture",
+        label: "opttab.thumbnail-capture",
         qos: .userInitiated,
         attributes: .concurrent
     )
@@ -428,7 +428,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let otherSpaceScanBudget: TimeInterval = 0.25
     private var otherSpaceElementsCache: [pid_t: (date: Date, elements: [CGWindowID: AXUIElement])] = [:]
     private let otherSpaceScanQueue = DispatchQueue(
-        label: "cmdtab.other-space-prewarm",
+        label: "opttab.other-space-prewarm",
         qos: .utility
     )
 
@@ -456,7 +456,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DistributedNotificationCenter.default().addObserver(
             self,
             selector: #selector(handleShowSettingsNotification(_:)),
-            name: .cmdTabShowSettings,
+            name: .opttabShowSettings,
             object: nil
         )
 
@@ -489,7 +489,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = item.button {
             applyMenuBarIcon(to: button)
-            button.toolTip = "CmdTab (Alt+Tab window switcher)"
+            button.toolTip = "OptTab (Alt+Tab window switcher)"
         }
 
         let menu = NSMenu()
@@ -894,15 +894,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+let app = NSApplication.shared
+if let migrationMessage = LegacyCmdTabMigration.runIfNeeded() {
+    let alert = NSAlert()
+    alert.messageText = "Finish moving from CmdTab to OptTab"
+    alert.informativeText = migrationMessage
+    alert.alertStyle = .informational
+    alert.runModal()
+    exit(0)
+}
+
 let instanceLock = SingleInstanceLock()
 guard instanceLock.acquire() else {
-    // Another CmdTab is already running: ask it to show Settings, then exit.
-    DistributedNotificationCenter.default().post(name: .cmdTabShowSettings, object: nil)
+    // Another OptTab is already running: ask it to show Settings, then exit.
+    DistributedNotificationCenter.default().post(name: .opttabShowSettings, object: nil)
     Thread.sleep(forTimeInterval: 0.2)
     exit(0)
 }
 
-let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
 app.run()

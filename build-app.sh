@@ -3,11 +3,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-APP_NAME="CmdTab"
+APP_NAME="OptTab"
 APP_BUNDLE="${1:-dist/${APP_NAME}.app}"
-APP_BINARY="${CMDTAB_BINARY:-.build/release/${APP_NAME}}"
+APP_BINARY="${OPTTAB_BINARY:-.build/release/${APP_NAME}}"
 
-if [ -z "${CMDTAB_BINARY:-}" ]; then
+if [ -z "${OPTTAB_BINARY:-}" ]; then
   echo "Building release binary…"
   swift build -c release
 fi

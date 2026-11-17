@@ -1,7 +1,7 @@
 import AppKit
 
 extension Notification.Name {
-    static let cmdTabShowSettings = Notification.Name("dev.cmdtab.showSettings")
+    static let opttabShowSettings = Notification.Name("dev.opttab.showSettings")
 }
 
 final class SettingsWindowController: NSObject {
@@ -38,7 +38,7 @@ final class SettingsWindowController: NSObject {
         )
         super.init()
 
-        window.title = "CmdTab Settings"
+        window.title = "OptTab Settings"
         window.isReleasedWhenClosed = false
         window.center()
 
@@ -121,7 +121,7 @@ final class SettingsWindowController: NSObject {
         thumbnailRow.spacing = 8
 
         let hint = NSTextField(
-            wrappingLabelWithString: "Press Alt+Tab to switch between windows of the current app. Reopen this window by launching CmdTab again."
+            wrappingLabelWithString: "Press Alt+Tab to switch between windows of the current app. Reopen this window by launching OptTab again."
         )
         hint.font = NSFont.systemFont(ofSize: 11)
         hint.textColor = .secondaryLabelColor
@@ -154,7 +154,7 @@ final class SettingsWindowController: NSObject {
         let view = NSView(frame: NSRect(x: 0, y: 0, width: 460, height: 400))
 
         let intro = NSTextField(
-            wrappingLabelWithString: "Grant these permissions in System Settings. CmdTab reconnects automatically when you return."
+            wrappingLabelWithString: "Grant these permissions in System Settings. OptTab reconnects automatically when you return."
         )
         intro.font = NSFont.systemFont(ofSize: 12)
         intro.preferredMaxLayoutWidth = 430
@@ -217,7 +217,7 @@ final class SettingsWindowController: NSObject {
         iconView.widthAnchor.constraint(equalToConstant: 96).isActive = true
         iconView.heightAnchor.constraint(equalToConstant: 96).isActive = true
 
-        let nameLabel = NSTextField(labelWithString: "CmdTab")
+        let nameLabel = NSTextField(labelWithString: "OptTab")
         nameLabel.font = NSFont.boldSystemFont(ofSize: 20)
         nameLabel.alignment = .center
 
@@ -272,7 +272,7 @@ final class SettingsWindowController: NSObject {
 
     private var appVersion: String {
         let info = Bundle.main.infoDictionary
-        let shortVersion = info?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let shortVersion = info?["CFBundleShortVersionString"] as? String ?? "2.0.0"
         let build = info?["CFBundleVersion"] as? String ?? "1"
         return "\(shortVersion) (\(build))"
     }
@@ -289,7 +289,7 @@ final class SettingsWindowController: NSObject {
         let missingScreenRecording = !Permission.screenRecording.isGranted
 
         if missingCore {
-            warningLabel.stringValue = "Alt+Tab needs Accessibility and Input Monitoring. Grant them, then return here; CmdTab reconnects automatically."
+            warningLabel.stringValue = "Alt+Tab needs Accessibility and Input Monitoring. Grant them, then return here; OptTab reconnects automatically."
             warningLabel.isHidden = false
         } else if missingScreenRecording {
             warningLabel.stringValue = "Screen Recording is needed for window thumbnails. Without it, cards show the app icon."

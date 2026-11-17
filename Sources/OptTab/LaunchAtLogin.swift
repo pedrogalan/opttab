@@ -3,11 +3,12 @@ import Foundation
 
 /// Manages "run at startup" for the current executable.
 ///
-/// While CmdTab is an unbundled SwiftPM executable, `SMAppService` isn't
+/// While OptTab is an unbundled SwiftPM executable, `SMAppService` isn't
 /// available in a useful way, so this writes a per-user LaunchAgent plist and
 /// bootstraps it into the current GUI session.
 enum LaunchAtLogin {
-    private static let label = "dev.cmdtab.login"
+    private static let label = "dev.opttab.login"
+    private static let legacyLabel = "dev.cmdtab.login"
 
     static var isEnabled: Bool {
         FileManager.default.fileExists(atPath: plistURL.path)
@@ -30,6 +31,19 @@ enum LaunchAtLogin {
     static func syncIfEnabled() {
         guard isEnabled else { return }
         try? writePlist()
+    }
+
+    /// Moves an existing CmdTab login item to OptTab without starting a
+    /// second OptTab process during this launch.
+    static func migrateLegacyAgentIfNeeded() throws {
+        let legacyURL = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/LaunchAgents", isDirectory: true)
+            .appendingPathComponent("\(legacyLabel).plist")
+        guard FileManager.default.fileExists(atPath: legacyURL.path) else { return }
+
+        _ = launchctl(["bootout", "gui/\(getuid())/\(legacyLabel)"])
+        try FileManager.default.removeItem(at: legacyURL)
+        try writePlist()
     }
 
     private static var plistURL: URL {

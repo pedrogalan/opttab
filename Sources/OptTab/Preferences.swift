@@ -50,6 +50,22 @@ final class Preferences {
 
     private let defaults = UserDefaults.standard
 
+    static func migrateLegacyCmdTabSettings() {
+        guard let legacyDefaults = UserDefaults(suiteName: "dev.cmdtab") else { return }
+
+        let keys = [
+            Key.showMenuBarIcon,
+            Key.includeWindowsFromOtherSpaces,
+            Key.thumbnailSize,
+        ]
+        let defaults = UserDefaults.standard
+        for key in keys where defaults.object(forKey: key) == nil {
+            if let value = legacyDefaults.object(forKey: key) {
+                defaults.set(value, forKey: key)
+            }
+        }
+    }
+
     var showMenuBarIcon: Bool {
         get {
             if defaults.object(forKey: Key.showMenuBarIcon) == nil {

@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
 
-/// Ensures only one CmdTab process runs at a time.
+/// Ensures only one OptTab process runs at a time.
 ///
 /// This matters for the "Run at startup" toggle: `launchctl bootstrap` with
 /// `RunAtLoad` starts the job immediately, and we don't want a second instance
@@ -11,7 +11,7 @@ final class SingleInstanceLock {
 
     func acquire() -> Bool {
         let supportDirectory = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/CmdTab", isDirectory: true)
+            .appendingPathComponent("Library/Application Support/OptTab", isDirectory: true)
         try? FileManager.default.createDirectory(at: supportDirectory, withIntermediateDirectories: true)
 
         let lockPath = supportDirectory.appendingPathComponent("instance.lock").path
