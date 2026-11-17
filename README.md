@@ -2,7 +2,7 @@
 
 Minimal macOS menu bar app that captures `Alt+Tab` and shows an overlay to switch between windows of the **current/frontmost app** (Cmd+Tab-style, but per-app).
 
-CmdTab 1.0.1 supports macOS 13 and later.
+CmdTab 1.0.2 supports macOS 13 and later.
 
 ## Stack
 - Swift + AppKit (native)
