@@ -2,7 +2,7 @@
 
 OptTab is a macOS window switcher for the app you’re using. Hold **Option** and press **Tab** to cycle through that app’s windows without switching to a different app.
 
-[Download OptTab](https://github.com/pedrogalan/cmdtab/releases/latest)
+[Download OptTab](https://github.com/pedrogalan/opttab/releases/latest)
 
 ## Requirements
 
@@ -13,7 +13,7 @@ OptTab is a macOS window switcher for the app you’re using. Hold **Option** an
 
 ## Install
 
-1. Download the universal ZIP from the [GitHub Releases page](https://github.com/pedrogalan/cmdtab/releases).
+1. Download the universal ZIP from the [GitHub Releases page](https://github.com/pedrogalan/opttab/releases).
 2. Open the ZIP and move `OptTab.app` to your Applications folder.
 3. Open OptTab. If macOS warns that it can’t verify the app, Control-click `OptTab.app`, choose **Open**, then confirm.
 4. In the Settings window, open **Permissions** and grant Accessibility and Input Monitoring. Grant Screen Recording if you want window thumbnails.

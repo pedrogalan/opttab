@@ -8,7 +8,7 @@ This file contains development and release procedures. Keep the root README focu
 - `Package.swift` defines a single executable target at `Sources/OptTab`.
 - The app’s bundle identifier is `dev.opttab`.
 - Keep the app bundle named `OptTab.app`. Version numbers belong in `App/Info.plist`, release tags, release notes, and archive filenames; do not append them to the app bundle name.
-- The GitHub repository slug and URLs remain `cmdtab` until the owner renames the repository. Preserve those URLs in the meantime.
+- The GitHub repository slug and URLs are `opttab`.
 - The README is public-facing and should not contain a current version number or internal build/release commands.
 - `releases/v1.0.x.md` are historical CmdTab release notes. Keep their original product name; new OptTab releases use the same `releases/` directory.
 
@@ -34,7 +34,7 @@ The build is ad-hoc signed because the project does not have an Apple Developer 
 
 ## Release procedure
 
-Use an annotated version tag such as `v2.0.1`. Keep the app name `OptTab.app` unchanged.
+Use an annotated version tag such as `v2.0.2`. Keep the app name `OptTab.app` unchanged.
 
 1. Start from a clean, up-to-date `master` branch and confirm that the release tag and GitHub release do not already exist.
 2. Set `CFBundleShortVersionString` and increment `CFBundleVersion` in `App/Info.plist`.
@@ -49,7 +49,7 @@ Use an annotated version tag such as `v2.0.1`. Keep the app name `OptTab.app` un
 5. Verify the app version, both architectures, icon, signature, and archive:
 
    ```bash
-   VERSION=2.0.1
+   VERSION=2.0.2
    /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' dist/OptTab.app/Contents/Info.plist
    /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' dist/OptTab.app/Contents/Info.plist
    lipo -info dist/OptTab.app/Contents/MacOS/OptTab
@@ -63,7 +63,7 @@ Use an annotated version tag such as `v2.0.1`. Keep the app name `OptTab.app` un
 6. Review and stage the release changes, commit, and tag:
 
    ```bash
-   VERSION=2.0.1
+   VERSION=2.0.2
    git add -A
    git diff --cached
    git commit -m "Prepare OptTab ${VERSION} release"
@@ -73,14 +73,14 @@ Use an annotated version tag such as `v2.0.1`. Keep the app name `OptTab.app` un
 7. Confirm `gh auth status`, then publish the archive and notes:
 
    ```bash
-   VERSION=2.0.1
+   VERSION=2.0.2
    gh release create "v${VERSION}" \
      --title "OptTab ${VERSION}" \
      --notes-file "releases/v${VERSION}.md" \
      "dist/OptTab-${VERSION}-macos-universal.zip"
    ```
 
-8. Verify the published release with `gh release view v2.0.1 --json tagName,isDraft,publishedAt,url,assets` and confirm the uploaded asset’s name, size, and digest match the local archive.
+8. Verify the published release with `gh release view v2.0.2 --json tagName,isDraft,publishedAt,url,assets` and confirm the uploaded asset’s name, size, and digest match the local archive.
 
 ## Permissions and troubleshooting
 

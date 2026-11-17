@@ -7,7 +7,7 @@ extension Notification.Name {
 final class SettingsWindowController: NSObject {
     var onShowMenuBarIconChanged: ((Bool) -> Void)?
 
-    private static let githubURL = URL(string: "https://github.com/pedrogalan/cmdtab")!
+    private static let githubURL = URL(string: "https://github.com/pedrogalan/opttab")!
 
     private let window: NSWindow
     private let runAtStartupCheckbox = NSButton(
@@ -234,7 +234,7 @@ final class SettingsWindowController: NSObject {
         description.preferredMaxLayoutWidth = 360
 
         let githubButton = NSButton(
-            title: "github.com/pedrogalan/cmdtab",
+            title: "github.com/pedrogalan/opttab",
             target: self,
             action: #selector(openGitHub)
         )
