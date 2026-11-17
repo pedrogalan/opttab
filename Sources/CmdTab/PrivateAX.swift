@@ -66,9 +66,16 @@ final class PrivateAX {
     /// Walks the process's AX element IDs and returns every window element it can
     /// reach, including windows on other Spaces.
     ///
-    /// The scan has to run for the full time budget because the number of windows
-    /// is unknown; callers should cache the result.
-    func allWindowElements(pid: pid_t, budget: TimeInterval) -> [CGWindowID: AXUIElement] {
+    /// Window elements cluster in a small range of IDs (typically the first ~100),
+    /// so the walk stops once `maxConsecutiveMisses` non-window IDs are seen in a
+    /// row. In practice that finds every window in a few milliseconds instead of
+    /// grinding through the whole ID space. Callers should still cache the result.
+    func allWindowElements(
+        pid: pid_t,
+        budget: TimeInterval,
+        maxConsecutiveMisses: Int = 150,
+        hardLimit: UInt64 = 20_000
+    ) -> [CGWindowID: AXUIElement] {
         guard let createRemote, let getWindow else { return [:] }
         guard let token = CFDataCreateMutable(kCFAllocatorDefault, 20) else { return [:] }
 
@@ -84,19 +91,19 @@ final class PrivateAX {
         var found: [CGWindowID: AXUIElement] = [:]
         let start = DispatchTime.now().uptimeNanoseconds
         var elementID: UInt64 = 0
+        var consecutiveMisses = 0
 
-        while elementID < 500_000 {
+        while elementID < hardLimit {
             let elapsed = Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000_000
             if elapsed > budget { break }
 
             var idField = elementID
             memcpy(bytes + 12, &idField, 8)
 
+            var isWindow = false
             if let element = createRemote(token)?.takeRetainedValue() {
                 var windowID: CGWindowID = 0
-                if getWindow(element, &windowID) == .success,
-                   windowID != 0,
-                   found[windowID] == nil {
+                if getWindow(element, &windowID) == .success, windowID != 0 {
                     AXUIElementSetMessagingTimeout(element, 0.1)
                     var roleRef: CFTypeRef?
                     if AXUIElementCopyAttributeValue(
@@ -104,8 +111,20 @@ final class PrivateAX {
                         kAXRoleAttribute as CFString,
                         &roleRef
                     ) == .success, let role = roleRef as? String, role == "AXWindow" {
-                        found[windowID] = element
+                        isWindow = true
+                        if found[windowID] == nil {
+                            found[windowID] = element
+                        }
                     }
+                }
+            }
+
+            if isWindow {
+                consecutiveMisses = 0
+            } else {
+                consecutiveMisses += 1
+                if consecutiveMisses >= maxConsecutiveMisses {
+                    break
                 }
             }
 
